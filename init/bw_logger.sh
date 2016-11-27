@@ -24,7 +24,7 @@ log::error() {
 }
 
 log::error_and_exit() {
-	echo -e "$RED [ERROR] $1 $*\n $END" >&2 && exit 1
+	echo -e "$RED [ERROR] $*\n $END" >&2 && exit 1
 }
 
 log::info() {

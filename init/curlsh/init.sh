@@ -22,16 +22,21 @@ BW_INIT_DIRECTORY=.bw-init
 #| '  \/ _` | | ' \
 #|_|_|_\__,_|_|_||_|
 
-info() {
+log_info() {
 	echo -e "$GREEN [INFO] $* $END"
 }
 
+log_warn() {
+	echo -e "$YELLOW [WARN] $* $END"
+}
+
 if [[ -d $BW_INIT_DIRECTORY ]]; then
-    warn " Find a previous installation directory, it will be deleted !"
+    log_warn " Find a previous installation directory, it will be deleted !"
+    #TODO: Ask confirmation
     rm -rf $BW_INIT_DIRECTORY
 fi
 
-info " Attemp to download necessary files to setup BW environment ..."
+log_info " Attemp to download necessary files to setup BW environment ..."
 echo " "
 #FIXME : Must change , scp right now for project understanding
 scp -rpq -o LogLevel=QUIET $ACTUAL_INIT_REPO $BW_INIT_DIRECTORY
@@ -51,7 +56,7 @@ cat <<-EOF
      +-----------------------------------------------------------------------------+
      | Create admin user with the following command                                |
      +-----------------------------------------------------------------------------+
-     | \$ sudo ./install/init-bwadmin.sh                                            |
+     | \$ sudo .bw-init/install/init-bwadmin.sh                                            |
      ------------------------------------------------------------------------------+
 EOF
 
