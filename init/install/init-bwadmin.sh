@@ -11,14 +11,15 @@
 readonly RED="\\033[1;31m"
 readonly GREEN="\\033[1;32m"
 readonly YELLOW="\\033[1;33m"
+readonly BLUE="\\033[1;34m"
 readonly MAGENTA="\\033[1;35m"
 readonly GRAS="\033[1m"
 readonly END="\\033[1;00m"
 
 ALL_PARAMS=$@
-FS="/bw"
+DEFAULT_INSTALL_PATH="$HOME/.bwbw"
 BW_ADMIN_USER=bwadmin
-BW_ADMIN_PATH=$FS/admin/$BW_ADMIN_USER
+BW_ADMIN_PATH=$DEFAULT_INSTALL_PATH/admin/$BW_ADMIN_USER
 
 usage() {
 cat <<-EOF
@@ -27,8 +28,6 @@ cat <<-EOF
     OPTIONS :
     =========
         -u      Admin user name (par default is : bwadmin)
-	    -p      Path to download BW project script (default is : /bw/admin/bwadmin)
-
 EOF
 }
 
@@ -40,41 +39,93 @@ EOF
 #/_____/      \/            |__|       \/
 #
 
-while getopts hu:p: arg; do
+while getopts hu: arg; do
     case $arg in
     u)
        BW_ADMIN_USER=$OPTARG
        ;;
-    p)
-       BW_ADMIN_PATH=$OPTARG
-       HAS_FORCE_BW_ADMIN_PATH=1
-       ;;
-    ?|h)
+    *|h)
         usage
         exit 2
         ;;
     esac
 done
 
+lcase() {
+	local text=$1
+	echo $(echo "$text" | tr '[:upper:]' '[:lower:]')
+}
+
+ucase() {
+	local text=$1
+	echo $(echo "$text" | tr '[:lower:]' '[:upper:]')
+}
+
+ask() {
+	local question=$1
+	local fonc=$2
+	local rep
+
+	echo -e "$MAGENTA" "$question (yes/no)" "$END"
+	read rep
+	if [[ $(lcase "$rep") == "yes" ]]
+	then
+		$fonc
+	else
+		echo -e "$GREEN" "..." "$END"
+	fi
+}
+
+log_info() {
+	echo -e "$BLUE [INFO] $* $END"
+}
+
+log_success() {
+	echo -e "$GREEN [INFO] $* $END"
+}
+
+log_warn() {
+	echo -e "$YELLOW [WARN] $* $END"
+}
+
 log_error() {
+    echo ""
 	echo -e "$RED [ERROR] $* $END" >&2
 }
 
 log_error_and_exit() {
+    echo ""
 	echo -e "$RED [ERROR] $*\n $END" >&2 && exit 1
 }
 
 
-check_required_fs () {
-    [[ -d $FS ]] || log_error_and_exit "The required file system for installation : $FS doesn't exist ! "
-}
-
 ensure_sudo_right() {
     local userId=$(id -u)
     if [[ $userId -ne 0 ]]; then
-        log_error "You don't have right to write this script ! Permission denied"
-        log_error_and_exit "Try to run as sudo right : $END sudo $0 $ALL_PARAMS"
+        log_error "Permission denied : You don't have right to run this script ! "
+        log_error_and_exit "Try to run with sudo right : $END sudo $0 $ALL_PARAMS"
     fi
+}
+
+ensure_user_not_already_exist() {
+    log_info "Check BWBW admin username ..."
+    if id $BW_ADMIN_USER >/dev/null 2>&1
+    then
+        log_error_and_exit " KO : The user $END$BW_ADMIN_USER$RED already exists !"
+    fi
+}
+
+install_user() {
+    mkdir -p $DEFAULT_INSTALL_PATH
+
+    #TODO: ensure free space
+
+    #TODO Effective user installation must go here
+    mkdir -p ${BW_ADMIN_PATH%/*}
+    /usr/sbin/useradd -c "Admin BWBW" -m -d $BW_ADMIN_PATH -s /bin/bash -p "\$1\$zMF9TLy9\$82mKGpg.zve4XI4JiucVB0" $BW_ADMIN_USER >/dev/null
+    [[ $? -ne 0 ]] && log_error_and_exit "Enable to create user $BW_ADMIN_USER !"
+    chmod 755 $BW_ADMIN_PATH
+    echo "CREATED=$(date)" > $BW_ADMIN_PATH/bw-info.conf
 }
 
 #             _
@@ -82,6 +133,12 @@ ensure_sudo_right() {
 # | '  \/ _` | | ' \
 # |_|_|_\__,_|_|_||_|
 #
-
-[[ -z HAS_FORCE_BW_ADMIN_PATH ]] && check_required_fs
 ensure_sudo_right
+ensure_user_not_already_exist
+
+if [[ -d $DEFAULT_INSTALL_PATH ]]; then
+ ask "The installation folder already exists at $DEFAULT_INSTALL_PATH. Continue to override it ? " install_user
+else
+    install_user
+fi
+
